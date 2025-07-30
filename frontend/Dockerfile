@@ -1,17 +1,18 @@
-FROM node:18-alpine as builder
+FROM node:18-alpine
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-RUN npm ci
 
+# Clean install
+RUN rm -rf node_modules package-lock.json
+RUN npm install
+
+# Copy application files
 COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+# Use npx to run vite
+CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "3000"]

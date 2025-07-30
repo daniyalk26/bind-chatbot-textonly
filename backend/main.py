@@ -1,4 +1,3 @@
-# backend/main.py
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,12 +7,13 @@ import os
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 
-from .db import init_db, get_session
-from .schemas import WebSocketMessage, ConversationState, UserResponse
-from .conversation_engine import ConversationEngine
-from .openai_client import OpenAIClient
-from . import crud
-from .models import LicenseType, LicenseStatus
+# Use absolute imports
+from db import init_db, get_session
+from schemas import WebSocketMessage, ConversationState, UserResponse
+from conversation_engine import ConversationEngine
+from openai_client import OpenAIClient
+import crud
+from models import LicenseType, LicenseStatus
 
 load_dotenv()
 
