@@ -1,18 +1,25 @@
-FROM node:18-alpine
+# frontend/Dockerfile
+FROM node:20-slim
+
+# Install dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Clean install
-RUN rm -rf node_modules package-lock.json
-RUN npm install
+# Install dependencies with force to ensure proper architecture
+RUN npm install --force --loglevel verbose
 
-# Copy application files
+# Copy application code
 COPY . .
 
-EXPOSE 3000
+EXPOSE 5173
 
-# Use npx to run vite
-CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "3000"]
+# Default command (overridden by docker-compose)
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
