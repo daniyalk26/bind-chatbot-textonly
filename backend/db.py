@@ -4,10 +4,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 import os, asyncio
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://chat:chat@db/chatdb"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+print("🛠  DEBUG: Using DATABASE_URL =", DATABASE_URL)
+
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

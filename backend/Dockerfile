@@ -1,23 +1,22 @@
+# backend/Dockerfile
 FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# ---- system deps ----
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
+# ---- Python deps ----
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# ---- project code ----
 COPY . .
 
-# Expose port
+# ---- serve ----
 EXPOSE 8000
-
-# Run with python -m to ensure it finds uvicorn
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
