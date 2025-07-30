@@ -1,8 +1,7 @@
-// frontend/src/components/ChatWindow.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageBubble } from './MessageBubble';
+import MessageBubble from './MessageBubble';           // default import
 import { TranscriptDrawer } from './TranscriptDrawer';
-import { WebSocketClient } from '../api';
+import WebSocketClient from '../api';
 
 interface Message {
   id: string;
@@ -17,6 +16,7 @@ interface ConversationState {
 }
 
 export const ChatWindow: React.FC = () => {
+  /* ---------------- state ---------------- */
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -26,29 +26,30 @@ export const ChatWindow: React.FC = () => {
     progress: 0,
   });
   const [showTranscript, setShowTranscript] = useState(false);
-  
+
+  /* ---------------- refs ---------------- */
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const wsClient = useRef<WebSocketClient | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
+  /* ---------------- websocket lifecycle ---------------- */
   useEffect(() => {
     wsClient.current = new WebSocketClient(
       (data) => {
         if (data.type === 'bot_message') {
           setIsTyping(false);
-          const newMessage: Message = {
-            id: `msg_${Date.now()}`,
-            role: 'assistant',
-            content: data.content,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, newMessage]);
-          
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg_${Date.now()}`,
+              role: 'assistant',
+              content: data.content,
+              timestamp: new Date(),
+            },
+          ]);
+
           if (data.data?.state) {
-            setConversationState(prev => ({
-              ...prev,
-              currentState: data.data.state,
-            }));
+            setConversationState((prev) => ({ ...prev, currentState: data.data.state }));
           }
         } else if (data.type === 'state_update') {
           setConversationState(data.data);
@@ -57,50 +58,43 @@ export const ChatWindow: React.FC = () => {
       () => setIsConnected(true),
       () => setIsConnected(false)
     );
-    
+
     wsClient.current.connect();
-    
-    return () => {
-      wsClient.current?.disconnect();
-    };
+    return () => wsClient.current?.disconnect();
   }, []);
-  
+
+  /* ---------------- auto‑scroll ---------------- */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-  
+
+  /* ---------------- helpers ---------------- */
   const sendMessage = () => {
     if (!input.trim() || !isConnected) return;
-    
-    const userMessage: Message = {
-      id: `msg_${Date.now()}`,
-      role: 'user',
-      content: input,
-      timestamp: new Date(),
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
+
+    setMessages((prev) => [
+      ...prev,
+      { id: `msg_${Date.now()}`, role: 'user', content: input, timestamp: new Date() },
+    ]);
     setIsTyping(true);
-    
-    wsClient.current?.send({
-      type: 'user_message',
-      content: input,
-    });
-    
+
+    wsClient.current?.send({ type: 'user_message', content: input });
+
     setInput('');
     inputRef.current?.focus();
   };
-  
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
-  
+
+  /* ---------------- render ---------------- */
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
+      {/* ------- Header ------- */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -120,7 +114,7 @@ export const ChatWindow: React.FC = () => {
                 )}
               </p>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setShowTranscript(true)}
@@ -128,9 +122,11 @@ export const ChatWindow: React.FC = () => {
               >
                 View Transcript
               </button>
-              
+
               <div className="w-48">
-                <div className="text-xs text-gray-600 mb-1">Progress: {conversationState.progress}%</div>
+                <div className="text-xs text-gray-600 mb-1">
+                  Progress: {conversationState.progress}%
+                </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
@@ -142,14 +138,15 @@ export const ChatWindow: React.FC = () => {
           </div>
         </div>
       </header>
-      
-      {/* Messages */}
+
+      {/* ------- Messages ------- */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          {messages.map(message => (
-            <MessageBubble key={message.id} message={message} />
+          {messages.map((m) => (
+            <MessageBubble key={m.id} message={m} />
           ))}
-          
+
+          {/* Typing indicator */}
           {isTyping && (
             <div className="flex justify-start mb-4">
               <div className="flex items-end">
@@ -161,19 +158,25 @@ export const ChatWindow: React.FC = () => {
                 <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-2">
                   <div className="flex space-x-2">
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    <div
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '0.1s' }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '0.2s' }}
+                    />
                   </div>
                 </div>
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
       </div>
-      
-      {/* Input */}
+
+      {/* ------- Input ------- */}
       <div className="bg-white border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex space-x-2">
@@ -184,8 +187,8 @@ export const ChatWindow: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={
-                conversationState.currentState === 'completed' 
-                  ? 'Onboarding completed!' 
+                conversationState.currentState === 'completed'
+                  ? 'Onboarding completed!'
                   : 'Type your response...'
               }
               disabled={!isConnected || conversationState.currentState === 'completed'}
@@ -193,7 +196,9 @@ export const ChatWindow: React.FC = () => {
             />
             <button
               onClick={sendMessage}
-              disabled={!isConnected || !input.trim() || conversationState.currentState === 'completed'}
+              disabled={
+                !isConnected || !input.trim() || conversationState.currentState === 'completed'
+              }
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               Send
@@ -201,8 +206,8 @@ export const ChatWindow: React.FC = () => {
           </div>
         </div>
       </div>
-      
-      {/* Transcript Drawer */}
+
+      {/* ------- Transcript Drawer ------- */}
       <TranscriptDrawer
         isOpen={showTranscript}
         onClose={() => setShowTranscript(false)}

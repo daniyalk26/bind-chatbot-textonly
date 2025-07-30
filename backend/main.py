@@ -13,7 +13,7 @@ from backend.db import init_db, get_session
 from backend.schemas import WebSocketMessage, ConversationState, UserResponse
 from backend.conversation_engine import ConversationEngine
 import backend.models as models
-import backend.openai_client as openai_client
+from backend.openai_client import OpenAIClient
 import backend.crud as crud
 
 load_dotenv()
@@ -42,7 +42,8 @@ app.add_middleware(
 )
 
 engine    = ConversationEngine()
-ai_client = openai_client.OpenAIClient()   # avoid shadowing the module name
+ai_client = OpenAIClient()
+   # avoid shadowing the module name
 
 # ------------------------------------------------------------------ #
 #  WebSocket endpoint
