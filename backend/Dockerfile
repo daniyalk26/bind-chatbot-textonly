@@ -1,22 +1,20 @@
-# backend/Dockerfile
 FROM python:3.9-slim
 
-WORKDIR /app/backend	
+# -------- system deps --------
+RUN apt-get update && apt-get install -y gcc postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# ---- system deps ----
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
- && rm -rf /var/lib/apt/lists/*
-
-# ---- Python deps ----
+# -------- python deps --------
 COPY requirements.txt .
-RUN pip install --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# ---- project code ----
-COPY . .
+# -------- project code --------
+COPY . /app                       
+WORKDIR /app                      
 
-# ---- serve ----
+# (optional but explicit)
+ENV PYTHONPATH=/app
+
 EXPOSE 8000
-CMD ["python","-m","uvicorn","main:app","--host","0.0.0.0","--port","8000","--reload"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
