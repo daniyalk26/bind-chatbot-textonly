@@ -1,105 +1,121 @@
 # Bind IQ – Text-Only On-Boarding Chatbot
 
-A full-stack web chatbot that walks users through an insurance-style onboarding flow entirely via **text**.
-*(Voice mode is currently unstable — text mode works reliably; see “Known Issues” below.)*
+A full-stack web chatbot that walks users through an insurance-style onboarding flow entirely via text.
+*(Voice mode is currently disabled in this fork — text mode works reliably. See “Known Issues” below.)*
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Features
 
-| Layer | Tech |
-| :--- | :--- |
-| **Front-end** | React 18 + TypeScript + Vite + Tailwind |
-| **Back-end** | FastAPI • SQLModel • Uvicorn |
-| **AI Services** | OpenAI Chat + Whisper + TTS APIs |
-| **Database** | PostgreSQL 15 |
-| **Container** | Docker & Docker Compose |
+- **Text-Only Interaction**: A streamlined and reliable text-based conversation for user onboarding.
+- **AI-Powered Conversation**: Uses OpenAI language models to understand and generate natural user interactions.
+- **Real-time Communication**: WebSocket-based communication for an instant, responsive chat experience.
+- **Data Persistence**: Uses a PostgreSQL database to store user information and conversation history.
+- **Containerized Deployment**: Comes with pre-configured Docker and Docker Compose files for a simple, one-command setup.
+- **Modern Tech Stack**: Built with FastAPI for the backend and React with TypeScript for the frontend.
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ Architecture
 
-### Prerequisites
-- **Docker ≥ 23** with the Compose plugin.
-- (**Optional**) Python 3.10+ and Node.js for running locally without Docker.
-- (**Optional**) DataGrip or any PostgreSQL client to inspect the database.
+### Backend (FastAPI)
+- **FastAPI** for high-performance REST and WebSocket endpoints.
+- **SQLModel** for ORM and data validation, combining SQLAlchemy and Pydantic.
+- **Uvicorn** as the ASGI server.
+- **OpenAI API** for natural language generation.
 
-### 1. Clone the Repository
-```bash
-git clone [https://github.com/daniyalk26/bind-chatbot-textonly.git](https://github.com/daniyalk26/bind-chatbot-textonly.git)
-cd bind-chatbot-textonly
-2. Configure Environment
-Copy the example environment file and add your secrets.
+### Frontend (React + TypeScript)
+- **React 18** with **TypeScript** for a type-safe, component-based UI.
+- **Vite** as the build tool for a fast development experience.
+- **Tailwind CSS** for utility-first styling.
+- **WebSocket client** for real-time, bidirectional communication with the backend.
 
-Bash
+---
 
-cp backend/.env.example backend/.env
-Now, edit backend/.env with your details.
+## 📋 Prerequisites
 
-Ini, TOML
+- Docker & Docker Compose
+- An **OpenAI API key**
+- (**Optional**) Python 3.10+ and Node.js 18+ for local development without Docker.
+- (**Optional**) A PostgreSQL client like DataGrip to inspect the database.
 
-# backend/.env
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/bindiq_db
-Note: In Docker Compose, the hostname postgres automatically resolves to the Postgres container.
+---
 
-3. Spin Up the Full Stack with Docker
-This command will build the images and launch the backend, frontend, and postgres services.
+## 🚀 Installation & Setup
 
-Bash
+### Using Docker (Recommended)
 
-docker compose up --build
-Open your browser to http://localhost:5173 to interact with the chatbot.
+1.  **Clone the repository**:
+    ```bash
+    git clone [https://github.com/daniyalk26/bind-chatbot-textonly.git](https://github.com/daniyalk26/bind-chatbot-textonly.git)
+    cd bind-chatbot-textonly
+    ```
 
-🧪 Running Locally (without Docker)
-If you prefer to run the services separately for development:
+2.  **Create the environment file**:
+    Create a `.env` file in the `backend` directory by copying the example file.
+    ```bash
+    cp backend/.env.example backend/.env
+    ```
+    Now, add your API key to the `backend/.env` file:
+    ```env
+    # .env in the 'backend' directory
 
-Backend
-Bash
+    # API Keys
+    OPENAI_API_KEY=your_openai_api_key_here
 
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-# Ensure your .env file is populated correctly
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-Frontend
-Bash
+    # Database URL for Docker Compose
+    DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/bindiq_db
+    ```
 
-cd frontend
-npm install
-npm run dev
-Note: Ensure the frontend’s WebSocket target in api.ts (or an environment override) points to your local backend, e.g., ws://localhost:8000/.
+3.  **Start the application**:
+    ```bash
+    docker compose up --build
+    ```
+    This will start:
+    - Backend API on `http://localhost:8000`
+    - Frontend on `http://localhost:5173`
+    - PostgreSQL database (internal to Docker)
 
-🗄️ Connecting with DataGrip
-To connect to the database from your local machine, you must first expose the Postgres port in docker-compose.yml:
+---
 
-YAML
+## 🎮 Usage
 
-# docker-compose.yml
-services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: bindiq_db
-    ports:
-      - "5432:5432" # Expose port 5432 to the host machine
-After updating the file, restart your containers with docker compose up -d. Now you can connect using these settings in DataGrip:
+1.  Open your browser and navigate to **`http://localhost:5173`**.
+2.  The chat interface will appear, and you can begin typing to start the onboarding process.
 
-Host: localhost
+### Conversation Flow
+The chatbot will guide you through collecting key information for an insurance quote, such as:
+1.  Full name and email
+2.  ZIP code
+3.  Vehicle information (year, make, model)
+4.  Other relevant details for the quote
 
-Port: 5432
+### Connecting to the Database with DataGrip
+To view the database tables created by the application:
+1.  Expose the PostgreSQL port by adding a `ports` section to the `postgres` service in your `docker-compose.yml` file:
+    ```yaml
+    services:
+      postgres:
+        # ... other settings
+        ports:
+          - "5432:5432" # Expose port 5432 to the host
+    ```
+2.  Restart your containers: `docker compose up -d`.
+3.  In DataGrip, establish a new PostgreSQL connection with the following credentials:
+    - **Host**: `localhost`
+    - **Port**: `5432`
+    - **User**: `postgres`
+    - **Password**: `postgres`
+    - **Database**: `bindiq_db`
 
-Database: bindiq_db
+---
 
-User: postgres
+## 🚧 Known Issues
 
-Password: postgres
+- **Voice Mode Disabled**: This version of the project is text-only. The backend logic for voice interaction exists but is not wired up or stable.
+- **No Database Migrations**: Tables are created automatically by SQLModel when the application starts. For production, a database migration tool like Alembic would be necessary.
+- **Basic Validation**: The application performs basic validation on user inputs but does not include production-grade security or authentication.
 
-🚧 Known Issues
-Voice Mode Unstable: The necessary backend logic for STT/TTS exists, but the integration is not fully stable. Text-only mode is recommended.
+---
 
-No Migrations: Tables are auto-generated by SQLModel on launch. For production use, a migration tool like Alembic is recommended.
-
-Basic Validation: The app uses basic validation for user inputs but lacks production-grade authentication or advanced security features.
+## 📁 Project Structure
