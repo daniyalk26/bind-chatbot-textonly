@@ -8,6 +8,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
+from websockets.exceptions import ConnectionClosedError
 
 from backend.db import init_db, get_session
 from backend.schemas import WebSocketMessage, ConversationState, UserResponse
@@ -17,7 +18,6 @@ from backend.openai_client import OpenAIClient
 import backend.crud as crud
 
 load_dotenv()
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,6 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down")
 
 app = FastAPI(title="Bind IQ Chatbot", version="1.0.0", lifespan=lifespan)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173"],
@@ -42,8 +41,7 @@ app.add_middleware(
 )
 
 engine    = ConversationEngine()
-ai_client = OpenAIClient()
-   # avoid shadowing the module name
+ai_client = OpenAIClient()  # avoid shadowing name
 
 # ------------------------------------------------------------------ #
 #  WebSocket endpoint
@@ -54,20 +52,35 @@ async def websocket_endpoint(ws: WebSocket, db: AsyncSession = Depends(get_sessi
     session_id = ws.headers.get("x-session-id", ws.client.host)
 
     try:
+        # Load or create user + initial session row
         user = await crud.get_or_create_user(db, session_id)
+
+        # Helper to send safely
+        async def safe_send(payload: dict):
+            try:
+                await ws.send_json(payload)
+            except (WebSocketDisconnect, ConnectionClosedError):
+                logger.info("WebSocket closed during send, exiting loop")
+                raise WebSocketDisconnect()
 
         # --- Initial bot message ---
         init_state  = ConversationState.start
         init_prompt = engine.get_prompt(init_state)
         init_reply  = await ai_client.generate_response(init_state.value, init_prompt)
 
-        await ws.send_json({"type": "bot_message", "content": init_reply, "data": {"state": init_state.value}})
+        await safe_send({
+            "type": "bot_message",
+            "content": init_reply,
+            "data": {"state": init_state.value}
+        })
         await crud.save_message(db, user.id, "assistant", init_reply)
         await crud.update_session_state(db, user.id, ConversationState.collecting_zip.value)
 
         # --- Main loop ---
         while True:
+            # receive (this will raise WebSocketDisconnect if client hung up)
             data = await ws.receive_json()
+
             if data.get("type") != "user_message":
                 continue
 
@@ -82,30 +95,49 @@ async def websocket_endpoint(ws: WebSocket, db: AsyncSession = Depends(get_sessi
             ok, parsed, err = engine.validate_input(current, user_msg)
             if not ok:
                 err_reply = await ai_client.generate_error_response(current.value, user_msg, err)
-                await ws.send_json({"type": "bot_message", "content": err_reply, "data": {"state": current.value}})
+                await safe_send({
+                    "type": "bot_message",
+                    "content": err_reply,
+                    "data": {"state": current.value}
+                })
                 await crud.save_message(db, user.id, "assistant", err_reply)
                 continue
 
-            # Persist & decide next state
+            # Persist input & pick next state
             await _apply_valid_input(db, user, current, parsed, state_data)
             next_state = engine.get_next_state(current, parsed, state_data)
 
-            # Respond
+            # Generate and send reply
             next_prompt = engine.get_prompt(next_state)
             reply = await ai_client.generate_response(next_state.value, next_prompt, user.full_name)
 
             await crud.update_session_state(db, user.id, next_state.value, state_data)
-            await ws.send_json({"type": "bot_message", "content": reply, "data": {"state": next_state.value}})
+            await safe_send({
+                "type": "bot_message",
+                "content": reply,
+                "data": {"state": next_state.value}
+            })
 
+            # Send progress update
             progress = engine.calculate_progress(next_state)
-            await ws.send_json({"type": "state_update", "data": {"current_state": next_state.value, "progress": progress}})
+            await safe_send({
+                "type": "state_update",
+                "data": {"current_state": next_state.value, "progress": progress}
+            })
+
             await crud.save_message(db, user.id, "assistant", reply)
 
     except WebSocketDisconnect:
-        logger.info("Client %s disconnected", session_id)
+        logger.info("WebSocketDisconnect (client gone): %s", session_id)
+
     except Exception as exc:
-        logger.exception("WebSocket error: %s", exc)
-        await ws.close()
+        logger.exception("Unexpected WebSocket error: %s", exc)
+        # if socket still open, close quietly
+        try:
+            await ws.close()
+        except Exception:
+            pass
+
 
 # ------------------------------------------------------------------ #
 #  Helpers
@@ -155,10 +187,10 @@ async def _apply_valid_input(
     elif state == ConversationState.collecting_license_status:
         await crud.update_user(db, user.id, license_status=models.LicenseStatus(parsed))
 
+
 # ------------------------------------------------------------------ #
 #  Simple health‑check
 # ------------------------------------------------------------------ #
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "Bind IQ Chatbot"}
-

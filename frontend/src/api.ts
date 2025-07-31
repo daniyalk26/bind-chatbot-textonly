@@ -1,13 +1,24 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+/* ───────────── Base URL helpers ───────────── */
 
+// ①  Read the value that Vite injects at build time
+const ENV_BASE = import.meta.env.VITE_API_URL as string | undefined;
+
+/* ②  Fallbacks for running the frontend any way you like
+      – inside Docker (`ENV_BASE` will exist) or
+      – directly on your laptop (`localhost:8000`). */
+export const API_BASE_URL =
+  ENV_BASE ||
+  `${window.location.protocol}//${window.location.hostname}:8000`;
+
+/* ③  Axios instance */
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
-/* ───────────── WebSocket helper ───────────── */
+/* ───────────── WebSocket helper ───────────── */
 
 class WebSocketClient {
   private ws: WebSocket | null = null;
@@ -27,7 +38,9 @@ class WebSocketClient {
   private getOrCreateSessionId(): string {
     let sessionId = localStorage.getItem('session_id');
     if (!sessionId) {
-      sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+      sessionId = `session_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2, 11)}`;
       localStorage.setItem('session_id', sessionId);
     }
     return sessionId;
@@ -35,30 +48,34 @@ class WebSocketClient {
 
   /* -------- public -------- */
   connect() {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws?session=${this.sessionId}`;
+    // http  → ws     |  https → wss
+    const wsScheme = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const wsHost = API_BASE_URL.replace(/^https?:\/\//, '');
+    const wsUrl = `${wsScheme}://${wsHost}/ws?session=${this.sessionId}`;
+
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('WebSocket connected');
+      console.log('[WebSocket] connected');
       this.onConnect();
     };
 
     this.ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        this.onMessage(data);
+        this.onMessage(JSON.parse(event.data));
       } catch (err) {
-        console.error('WebSocket JSON parse error:', err);
+        console.error('[WebSocket] JSON parse error:', err);
       }
     };
 
     this.ws.onclose = () => {
-      console.log('WebSocket disconnected');
+      console.log('[WebSocket] disconnected');
       this.onDisconnect();
-      if (this.shouldReconnect) setTimeout(() => this.connect(), this.reconnectInterval);
+      if (this.shouldReconnect)
+        setTimeout(() => this.connect(), this.reconnectInterval);
     };
 
-    this.ws.onerror = (err) => console.error('WebSocket error:', err);
+    this.ws.onerror = (err) => console.error('[WebSocket] error:', err);
   }
 
   send(payload: unknown) {
@@ -73,6 +90,5 @@ class WebSocketClient {
   }
 }
 
-/* Export both ways so either style works */
 export { WebSocketClient };
 export default WebSocketClient;
