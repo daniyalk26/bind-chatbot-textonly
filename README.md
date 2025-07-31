@@ -1,7 +1,6 @@
 # Bind IQ – Text-Only On-Boarding Chatbot
 
 A full-stack web chatbot that walks users through an insurance-style onboarding flow entirely via text.
-*(Voice mode is currently disabled in this fork — text mode works reliably. See “Known Issues” below.)*
 
 ---
 
@@ -9,7 +8,6 @@ A full-stack web chatbot that walks users through an insurance-style onboarding 
 
 - **Text-Only Interaction**: A streamlined and reliable text-based conversation for user onboarding.
 - **AI-Powered Conversation**: Uses OpenAI language models to understand and generate natural user interactions.
-- **Real-time Communication**: WebSocket-based communication for an instant, responsive chat experience.
 - **Data Persistence**: Uses a PostgreSQL database to store user information and conversation history.
 - **Containerized Deployment**: Comes with pre-configured Docker and Docker Compose files for a simple, one-command setup.
 - **Modern Tech Stack**: Built with FastAPI for the backend and React with TypeScript for the frontend.
@@ -28,7 +26,6 @@ A full-stack web chatbot that walks users through an insurance-style onboarding 
 - **React 18** with **TypeScript** for a type-safe, component-based UI.
 - **Vite** as the build tool for a fast development experience.
 - **Tailwind CSS** for utility-first styling.
-- **WebSocket client** for real-time, bidirectional communication with the backend.
 
 ---
 
@@ -36,7 +33,6 @@ A full-stack web chatbot that walks users through an insurance-style onboarding 
 
 - Docker & Docker Compose
 - An **OpenAI API key**
-- (**Optional**) Python 3.10+ and Node.js 18+ for local development without Docker.
 - (**Optional**) A PostgreSQL client like DataGrip to inspect the database.
 
 ---
@@ -110,12 +106,3 @@ To view the database tables created by the application:
 
 ---
 
-## 🚧 Known Issues
-
-- **Voice Mode Disabled**: This version of the project is text-only. The backend logic for voice interaction exists but is not wired up or stable.
-- **No Database Migrations**: Tables are created automatically by SQLModel when the application starts. For production, a database migration tool like Alembic would be necessary.
-- **Basic Validation**: The application performs basic validation on user inputs but does not include production-grade security or authentication.
-
----
-
-## 📁 Project Structure
