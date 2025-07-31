@@ -8,9 +8,8 @@ A full-stack web chatbot that walks users through an insurance-style onboarding 
 
 | Layer | Tech |
 | :--- | :--- |
-| **Front-end** | React 18 + TypeScript + Vite |
+| **Front-end** | React 18 + TypeScript + Vite + Tailwind |
 | **Back-end** | FastAPI • SQLModel • Uvicorn |
-| **Realtime** | WebSockets (built into FastAPI) |
 | **AI Services** | OpenAI Chat + Whisper + TTS APIs |
 | **Database** | PostgreSQL 15 |
 | **Container** | Docker & Docker Compose |
