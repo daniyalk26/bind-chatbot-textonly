@@ -17,35 +17,14 @@ A full-stack web chatbot that walks users through an insurance-style onboarding 
 
 ---
 
-## 📂 Repository Layout
-
-.
-├── backend/            # FastAPI application
-│   ├── main.py         # WebSocket endpoint & routing + orchestration
-│   ├── models.py       # SQLModel ORM models
-│   ├── crud.py         # DB helper functions
-│   ├── conversation_* # FSM prompts / onboarding logic
-│   ├── openai_client.py# Async wrapper for OpenAI (chat, whisper, TTS)
-│   ├── .env.example    # Example env vars
-│   └── requirements.txt  # Python deps
-├── frontend/           # React (Vite) SPA
-│   └── src/…           # Components, api.ts (WS wrapper), UI logic
-├── docker-compose.yml  # Orchestrates postgres | backend | frontend
-└── Dockerfile(s)       # Image definitions for backend/frontend
-
-
----
-
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - **Docker ≥ 23** with the Compose plugin.
 - (**Optional**) Python 3.10+ and Node.js for running locally without Docker.
 - (**Optional**) DataGrip or any PostgreSQL client to inspect the database.
 
 ### 1. Clone the Repository
-
 ```bash
 git clone [https://github.com/daniyalk26/bind-chatbot-textonly.git](https://github.com/daniyalk26/bind-chatbot-textonly.git)
 cd bind-chatbot-textonly
