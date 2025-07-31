@@ -1,6 +1,7 @@
 # Bind IQ – Text-Only On-Boarding Chatbot
 
-A full-stack web chatbot that walks users through an insurance-style onboarding flow entirely via text.
+A full-stack web chatbot that walks users through an insurance-style onboarding flow entirely via **text**.
+*(Voice mode is currently unstable — text mode works reliably; see “Known Issues” below.)*
 
 ---
 
@@ -20,63 +21,106 @@ A full-stack web chatbot that walks users through an insurance-style onboarding 
 
 .
 ├── backend/            # FastAPI application
-│   ├── main.py         # WebSocket endpoint & routing logic
+│   ├── main.py         # WebSocket endpoint & routing + orchestration
 │   ├── models.py       # SQLModel ORM models
-│   ├── crud.py         # Database CRUD helpers
-│   ├── conversation_* # Finite-state machine prompts & logic
-│   ├── openai_client.py# Async wrapper around OpenAI APIs
-│   └── requirements.txt
-├── frontend/           # React (Vite) single-page app
-│   └── src/…           # Components, api.ts WebSocket wrapper, etc.
-├── docker-compose.yml  # 3-service stack: postgres | backend | frontend
-└── Dockerfile(s)       # Separate images for back- and front-end
+│   ├── crud.py         # DB helper functions
+│   ├── conversation_* # FSM prompts / onboarding logic
+│   ├── openai_client.py# Async wrapper for OpenAI (chat, whisper, TTS)
+│   ├── .env.example    # Example env vars
+│   └── requirements.txt  # Python deps
+├── frontend/           # React (Vite) SPA
+│   └── src/…           # Components, api.ts (WS wrapper), UI logic
+├── docker-compose.yml  # Orchestrates postgres | backend | frontend
+└── Dockerfile(s)       # Image definitions for backend/frontend
 
 
 ---
 
-## 🚀 Quick-start with Docker
+## 🚀 Quick Start
 
-> **Prerequisite:** Docker ≥ 23 & Docker Compose plugin.
+### Prerequisites
 
-1.  **Clone & enter the repo**
-    ```bash
-    git clone [https://github.com/daniyalk26/bind-chatbot-textonly.git](https://github.com/daniyalk26/bind-chatbot-textonly.git)
-    cd bind-chatbot-textonly
-    ```
+- **Docker ≥ 23** with the Compose plugin.
+- (**Optional**) Python 3.10+ and Node.js for running locally without Docker.
+- (**Optional**) DataGrip or any PostgreSQL client to inspect the database.
 
-2.  **Add secrets** (creates `backend/.env`) (add env in backend folder)
-    ```bash
-    # Create the environment file from the example
-    cp backend/.env.example backend/.env
-    ```
-    Now, open `backend/.env` and add your OpenAI API key and database url
-    ```ini
-    OPENAI_API_KEY=<your-key>
-    DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/bindiq_db
+### 1. Clone the Repository
 
-    ```
+```bash
+git clone [https://github.com/daniyalk26/bind-chatbot-textonly.git](https://github.com/daniyalk26/bind-chatbot-textonly.git)
+cd bind-chatbot-textonly
+2. Configure Environment
+Copy the example environment file and add your secrets.
 
-3.  **Spin up the full stack**
-    ```bash
-    docker compose up --build
-    ```
-    Compose spins up these services. You can access them on the following ports:
+Bash
 
-| Service | Purpose | Exposed Port |
-| :--- | :--- | :--- |
+cp backend/.env.example backend/.env
+Now, edit backend/.env with your details.
 
-| `backend` | FastAPI + WebSocket | `8000` |
-| `frontend` | React dev server | `5173` |
+Ini, TOML
 
-Open **http://localhost:5173** in your browser to start chatting.
+# backend/.env
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/bindiq_db
+Note: In Docker Compose, the hostname postgres automatically resolves to the Postgres container.
 
----
+3. Spin Up the Full Stack with Docker
+This command will build the images and launch the backend, frontend, and postgres services.
 
+Bash
 
+docker compose up --build
+Open your browser to http://localhost:5173 to interact with the chatbot.
 
+🧪 Running Locally (without Docker)
+If you prefer to run the services separately for development:
 
-⚙️ Environment Variables
-Variable	Location	Description
-OPENAI_API_KEY	backend/.env	Required. Your OpenAI secret key.
-DATABASE_URL	Compose inline	
+Backend
+Bash
 
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+# Ensure your .env file is populated correctly
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+Frontend
+Bash
+
+cd frontend
+npm install
+npm run dev
+Note: Ensure the frontend’s WebSocket target in api.ts (or an environment override) points to your local backend, e.g., ws://localhost:8000/.
+
+🗄️ Connecting with DataGrip
+To connect to the database from your local machine, you must first expose the Postgres port in docker-compose.yml:
+
+YAML
+
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bindiq_db
+    ports:
+      - "5432:5432" # Expose port 5432 to the host machine
+After updating the file, restart your containers with docker compose up -d. Now you can connect using these settings in DataGrip:
+
+Host: localhost
+
+Port: 5432
+
+Database: bindiq_db
+
+User: postgres
+
+Password: postgres
+
+🚧 Known Issues
+Voice Mode Unstable: The necessary backend logic for STT/TTS exists, but the integration is not fully stable. Text-only mode is recommended.
+
+No Migrations: Tables are auto-generated by SQLModel on launch. For production use, a migration tool like Alembic is recommended.
+
+Basic Validation: The app uses basic validation for user inputs but lacks production-grade authentication or advanced security features.
