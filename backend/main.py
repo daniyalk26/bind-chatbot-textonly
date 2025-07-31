@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 import json
 import logging
 import os
+import base64
 
 from dotenv import load_dotenv
 from websockets.exceptions import ConnectionClosedError
@@ -70,10 +71,23 @@ async def websocket_endpoint(ws: WebSocket, db: AsyncSession = Depends(get_sessi
         # ---------- main loop ----------
         while True:
             data = await ws.receive_json()
-            if data.get("type") != "user_message":
+
+            # Determine user text from either audio or message
+            if data.get("type") == "user_audio":
+                b64 = data.get("content", "")
+                try:
+                    audio_bytes = base64.b64decode(b64)
+                except Exception:
+                    continue
+                user_msg = await ai_client.transcribe_audio(audio_bytes)
+            elif data.get("type") == "user_message":
+                user_msg = data.get("content", "").strip()
+            else:
                 continue
 
-            user_msg = data["content"].strip()
+            if not user_msg:
+                continue
+
             await crud.save_message(db, user.id, "user", user_msg)
 
             session     = await crud.get_session(db, user.id)
@@ -97,14 +111,26 @@ async def websocket_endpoint(ws: WebSocket, db: AsyncSession = Depends(get_sessi
                 user_name=user.full_name,
             )
 
-            # update DB + send it back
+            # update DB
             await crud.update_session_state(db, user.id, next_state.value, state_data)
             await crud.save_message(db, user.id, "assistant", reply)
+
+            # send text reply
             await safe_send({
                 "type": "bot_message",
                 "content": reply,
                 "data": {"state": next_state.value}
             })
+
+            # synthesize and send audio reply
+            try:
+                mp3_bytes = await ai_client.synth_speech(reply)
+                mp3_b64 = base64.b64encode(mp3_bytes).decode()
+                await safe_send({"type": "bot_audio", "content": mp3_b64})
+            except Exception as e:
+                logger.warning("Failed to synthesize speech: %s", e)
+
+            # progress update
             await safe_send({
                 "type": "state_update",
                 "data": {
@@ -173,8 +199,7 @@ async def _apply_valid_input(
 
 
 # ------------------------------------------------------------------ #
-#  Simple health‑check
-# ------------------------------------------------------------------ #
+#  Simple health-check
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "Bind IQ Chatbot"}
