@@ -49,90 +49,74 @@ ai_client = OpenAIClient()  # avoid shadowing name
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket, db: AsyncSession = Depends(get_session)):
     await ws.accept()
-    session_id = ws.headers.get("x-session-id", ws.client.host)
+    session_id = ws.query_params.get("session") or ws.client.host
 
     try:
-        # Load or create user + initial session row
         user = await crud.get_or_create_user(db, session_id)
 
-        # Helper to send safely
         async def safe_send(payload: dict):
             try:
                 await ws.send_json(payload)
             except (WebSocketDisconnect, ConnectionClosedError):
-                logger.info("WebSocket closed during send, exiting loop")
                 raise WebSocketDisconnect()
 
-        # --- Initial bot message ---
+        # ---------- first message ----------
         init_state  = ConversationState.start
-        init_prompt = engine.get_prompt(init_state)
-        init_reply  = await ai_client.generate_response(init_state.value, init_prompt)
-
-        await safe_send({
-            "type": "bot_message",
-            "content": init_reply,
-            "data": {"state": init_state.value}
-        })
+        init_reply  = await ai_client.generate_response(init_state.value, engine.get_prompt(init_state))
+        await safe_send({"type": "bot_message", "content": init_reply, "data": {"state": init_state.value}})
         await crud.save_message(db, user.id, "assistant", init_reply)
         await crud.update_session_state(db, user.id, ConversationState.collecting_zip.value)
 
-        # --- Main loop ---
+        # ---------- main loop ----------
         while True:
-            # receive (this will raise WebSocketDisconnect if client hung up)
             data = await ws.receive_json()
-
             if data.get("type") != "user_message":
                 continue
 
-            user_msg = data.get("content", "")
+            user_msg = data["content"].strip()
             await crud.save_message(db, user.id, "user", user_msg)
 
-            session = await crud.get_session(db, user.id)
-            current = ConversationState(session.current_state)
-            state_data = json.loads(session.state_data)
+            session     = await crud.get_session(db, user.id)
+            current     = ConversationState(session.current_state)
+            state_data  = json.loads(session.state_data)
 
-            # Validate
             ok, parsed, err = engine.validate_input(current, user_msg)
             if not ok:
-                err_reply = await ai_client.generate_error_response(current.value, user_msg, err)
-                await safe_send({
-                    "type": "bot_message",
-                    "content": err_reply,
-                    "data": {"state": current.value}
-                })
-                await crud.save_message(db, user.id, "assistant", err_reply)
+                err_txt = await ai_client.generate_error_response(current.value, user_msg, err)
+                await safe_send({"type": "bot_message", "content": err_txt})
+                await crud.save_message(db, user.id, "assistant", err_txt)
                 continue
 
-            # Persist input & pick next state
             await _apply_valid_input(db, user, current, parsed, state_data)
             next_state = engine.get_next_state(current, parsed, state_data)
 
-            # Generate and send reply
-            next_prompt = engine.get_prompt(next_state)
-            reply = await ai_client.generate_response(next_state.value, next_prompt, user.full_name)
+            # ─── SIMPLE FULL‐CALL RESPONSE ────────────────────────────────
+            reply = await ai_client.generate_response(
+                next_state.value,
+                engine.get_prompt(next_state),
+                user_name=user.full_name,
+            )
 
+            # update DB + send it back
             await crud.update_session_state(db, user.id, next_state.value, state_data)
+            await crud.save_message(db, user.id, "assistant", reply)
             await safe_send({
                 "type": "bot_message",
                 "content": reply,
                 "data": {"state": next_state.value}
             })
-
-            # Send progress update
-            progress = engine.calculate_progress(next_state)
             await safe_send({
                 "type": "state_update",
-                "data": {"current_state": next_state.value, "progress": progress}
+                "data": {
+                    "current_state": next_state.value,
+                    "progress": engine.calculate_progress(next_state),
+                },
             })
 
-            await crud.save_message(db, user.id, "assistant", reply)
-
     except WebSocketDisconnect:
-        logger.info("WebSocketDisconnect (client gone): %s", session_id)
-
+        logger.info("client disconnected: %s", session_id)
     except Exception as exc:
-        logger.exception("Unexpected WebSocket error: %s", exc)
-        # if socket still open, close quietly
+        logger.exception("Unexpected WS error: %s", exc)
         try:
             await ws.close()
         except Exception:

@@ -1,3 +1,5 @@
+#backend/conversation_engine.py
+
 import re
 import json
 from typing import Tuple, Dict, Any, Optional
@@ -13,8 +15,7 @@ class ConversationEngine:
             ConversationState.collecting_zip:       "What's your 5-digit zip code?",
             ConversationState.collecting_name:      "Great! What's your full name?",
             ConversationState.collecting_email:     "Thanks! What's your email address?",
-            ConversationState.vehicle_intro:        "Perfect! Now let's add your vehicle. I'll need either your VIN or your vehicle's year, make, and body type.",
-            ConversationState.collecting_vehicle_info:  "Please provide either your VIN or Year Make Body-Type (like '2022 Honda Civic').",
+            ConversationState.collecting_vehicle_info:  "Perfect! Please provide either your VIN or Year Make Body-Type (e.g. '2022 Honda Civic').",
             ConversationState.collecting_vehicle_use:   "How do you primarily use this vehicle? (commuting, commercial, farming, or business)",
             ConversationState.collecting_blind_spot:    "Does this vehicle have blind spot warning? (Yes or No)",
             ConversationState.collecting_commute_days:  "How many days per week do you commute with this vehicle?",
@@ -55,8 +56,8 @@ class ConversationEngine:
             ConversationState.start:                   ConversationState.collecting_zip,
             ConversationState.collecting_zip:          ConversationState.collecting_name,
             ConversationState.collecting_name:         ConversationState.collecting_email,
-            ConversationState.collecting_email:        ConversationState.vehicle_intro,
-            ConversationState.vehicle_intro:           ConversationState.collecting_vehicle_info,
+            # jump directly to validation
+            ConversationState.collecting_email:        ConversationState.collecting_vehicle_info,
             ConversationState.collecting_vehicle_info: ConversationState.collecting_vehicle_use,
             ConversationState.collecting_vehicle_use:  ConversationState.collecting_blind_spot,
             ConversationState.collecting_blind_spot:   self._next_after_blind_spot,
